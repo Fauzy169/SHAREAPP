@@ -208,23 +208,22 @@ export const unsubscribePushNotification = async (endpoint, token) => {
   return checkResponse(response);
 };
 
-// ✅ Auto-sync offline stories when online
+
 window.addEventListener('online', async () => {
   const offlineStories = await getAllData();
 
   for (const story of offlineStories) {
     const token = localStorage.getItem(CONFIG.USER_TOKEN_KEY);
     const formData = new FormData();
-
     for (const key in story) {
       formData.append(key, story[key]);
     }
 
     try {
-      const response = await fetch(ENDPOINTS.STORIES, {
+      const response = await fetch(`${CONFIG.BASE_URL}/stories`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: story.isGuest ? '' : `Bearer ${token}`,
         },
         body: formData,
       });
@@ -238,3 +237,4 @@ window.addEventListener('online', async () => {
     }
   }
 });
+

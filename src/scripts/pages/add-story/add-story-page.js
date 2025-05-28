@@ -366,65 +366,78 @@ export default class AddStoryPage {
   }
 
   async _handleSubmit() {
-    const submitBtn = document.getElementById('submitBtn');
-    const errorElement = document.getElementById('formError');
-    
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Publishing...';
-    errorElement.textContent = '';
+  const submitBtn = document.getElementById('submitBtn');
+  const errorElement = document.getElementById('formError');
 
-    try {
-      const header = document.getElementById('header').value.trim();
-      const content = document.getElementById('description').value.trim();
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Publishing...';
+  errorElement.textContent = '';
 
-      if (content.includes('[HEADER]') || content.includes('[/HEADER]')) {
-    if (!content.match(/\[HEADER\].*\[\/HEADER\]/s)) {
-      throw new Error('Invalid header tags. Use [HEADER]...[/HEADER] format');
+  try {
+    const header = document.getElementById('header').value.trim();
+    const content = document.getElementById('description').value.trim();
+
+    if (content.includes('[HEADER]') || content.includes('[/HEADER]')) {
+      if (!content.match(/\[HEADER\].*\[\/HEADER\]/s)) {
+        throw new Error('Invalid header tags. Use [HEADER]...[/HEADER] format');
+      }
     }
-  }
-      
-      if (!header || !content) throw new Error('Header and content are required');
-      if (!this._photoFile) throw new Error('Photo is required');
 
-      const description = `[HEADER]${header}[/HEADER]\n${content}`;
+    if (!header || !content) throw new Error('Header and content are required');
+    if (!this._photoFile) throw new Error('Photo is required');
 
-      const formData = new FormData();
-      formData.append('description', description);
-      formData.append('photo', this._photoFile);
-      
-      if (this._includeLocation && this._location) {
-        formData.append('lat', this._location.lat.toString());
-        formData.append('lon', this._location.lon.toString());
-      }
+    const description = `[HEADER]${header}[/HEADER]\n${content}`;
+    const formData = new FormData();
+    formData.append('description', description);
+    formData.append('photo', this._photoFile);
 
-      const asGuest = document.getElementById('asGuest').checked;
-      const token = localStorage.getItem(CONFIG.USER_TOKEN_KEY);
+    if (this._includeLocation && this._location) {
+      formData.append('lat', this._location.lat.toString());
+      formData.append('lon', this._location.lon.toString());
+    }
 
-      if (asGuest) {
-        const response = await addStoryAsGuest(formData);
-        if (!response || !response.success) {
-          throw new Error(response?.message || 'Failed to add story as guest');
-        }
-      } else if (token) {
-        const response = await addStory(formData, token);
-        if (!response || !response.success) {
-          throw new Error(response?.message || 'Failed to add story');
-        }
-      } else {
-        throw new Error('Please login or post as guest');
-      }
+    const asGuest = document.getElementById('asGuest').checked;
+    const token = localStorage.getItem(CONFIG.USER_TOKEN_KEY);
 
-      alert('Story published successfully!');
+    // Fallback untuk offline
+    if (!navigator.onLine) {
+      const storyObj = Object.fromEntries(formData.entries());
+      storyObj.id = `offline-${Date.now()}`;
+      storyObj.isGuest = asGuest;
+
+      const { saveData } = await import('../../data/database.js');
+      await saveData(storyObj);
+
+      alert('Anda sedang offline. Cerita disimpan dan akan dikirim saat online.');
       window.location.hash = '#/stories';
-
-    } catch (error) {
-      console.error('Submission error:', error);
-      errorElement.innerHTML = `
-        <i class="fas fa-exclamation-circle"></i> ${error.message}
-      `;
-    } finally {
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Publish Story';
+      return;
     }
+
+    // Kirim ke server
+    if (asGuest || !token) {
+      const response = await addStoryAsGuest(formData);
+      if (!response || !response.success) {
+        throw new Error(response?.message || 'Failed to add story as guest');
+      }
+    } else {
+      const response = await addStory(formData, token);
+      if (!response || !response.success) {
+        throw new Error(response?.message || 'Failed to add story');
+      }
+    }
+
+    alert('Story published successfully!');
+    window.location.hash = '#/stories';
+
+  } catch (error) {
+    console.error('Submission error:', error);
+    errorElement.innerHTML = `
+      <i class="fas fa-exclamation-circle"></i> ${error.message}
+    `;
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Publish Story';
   }
+}
+
 }
