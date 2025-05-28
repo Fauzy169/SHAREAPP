@@ -1,14 +1,12 @@
 import CONFIG from '../config';
 import * as api from '../data/api';
-import '../utils/sw-register';
+import '../utils/sw-register'; // Tetap dipertahankan jika ada inisialisasi lainnya
 
 const urlBase64ToUint8Array = (base64String) => {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-
   const rawData = window.atob(base64);
   const outputArray = new Uint8Array(rawData.length);
-
   for (let i = 0; i < rawData.length; ++i) {
     outputArray[i] = rawData.charCodeAt(i);
   }
@@ -18,10 +16,15 @@ const urlBase64ToUint8Array = (base64String) => {
 const registerServiceWorker = async () => {
   if ('serviceWorker' in navigator) {
     try {
-      await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-      console.log('ServiceWorker registered!');
+      // ✅ Otomatis ambil base path dari halaman saat ini
+      const basePath = window.location.pathname.split('/').slice(0, 2).join('/');
+      const swPath = `${basePath}/sw.js`;
+      const swScope = `${basePath}/`;
+
+      await navigator.serviceWorker.register(swPath, { scope: swScope });
+      console.log('✅ ServiceWorker registered at:', swPath);
     } catch (err) {
-      console.error('ServiceWorker registration failed:', err);
+      console.error('❌ ServiceWorker registration failed:', err);
     }
   }
 };
@@ -30,7 +33,7 @@ const requestNotificationPermission = async () => {
   if ('Notification' in window) {
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') {
-      console.warn('Permission denied');
+      console.warn('⚠️ Notification permission denied');
     }
   }
 };
@@ -41,7 +44,7 @@ export const subscribePushNotification = async (token) => {
     const applicationServerKey = urlBase64ToUint8Array(CONFIG.VAPID_PUBLIC_KEY);
     const subscription = await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey
+      applicationServerKey,
     });
     await api.subscribePushNotification(subscription, token);
   }
@@ -51,7 +54,7 @@ export const initializeServiceWorker = () => {
   registerServiceWorker();
   requestNotificationPermission();
 
-   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    window.location.reload(); // Reload sekali saat SW baru aktif
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    window.location.reload(); // Reload saat SW baru aktif
   });
 };
