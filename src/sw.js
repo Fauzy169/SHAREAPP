@@ -21,8 +21,14 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('fetch', (event) => {
   event.respondWith(
-    caches.match(event.request)
-      .then((response) => response || fetch(event.request))
+    caches.match(event.request).then((cachedResponse) => {
+      return cachedResponse || fetch(event.request).catch(() => {
+        // Fallback untuk navigasi halaman
+        if (event.request.mode === 'navigate') {
+          return caches.match('/index.html');
+        }
+      });
+    })
   );
 });
 
@@ -34,6 +40,17 @@ self.addEventListener('activate', (event) => {
           .filter((name) => name !== CACHE_NAME)
           .map((name) => caches.delete(name))
       );
+    })
+  );
+});
+
+self.addEventListener('push', (event) => {
+  const payload = event.data?.json() || { title: 'New Story', body: 'A new story has been posted!' };
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      icon: '/favicon.png',
+      vibrate: [200, 100, 200]
     })
   );
 });

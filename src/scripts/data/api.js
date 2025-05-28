@@ -147,16 +147,37 @@ export const addStoryAsGuest = async (formData) => {
 };
 
 export const subscribePushNotification = async (subscription, token) => {
-  const response = await fetch(ENDPOINTS.NOTIFICATION_SUBSCRIBE, {
+  if (!subscription || !subscription.keys || !subscription.keys.p256dh || !subscription.keys.auth) {
+    throw new Error('Subscription keys not found or incomplete. Cannot subscribe.');
+  }
+
+  const body = {
+    endpoint: subscription.endpoint,
+    keys: {
+      p256dh: subscription.keys.p256dh,
+      auth: subscription.keys.auth
+    }
+  };
+
+  const response = await fetch(`${CONFIG.BASE_URL}/notifications/subscribe`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify(subscription),
+    body: JSON.stringify(body),
   });
-  return checkResponse(response);
+
+  if (!response.ok) {
+    const error = await response.json();
+    console.error('Subscribe failed:', error);
+    throw new Error(error.message || 'Subscribe failed');
+  }
+
+  return response.json();
 };
+
+
 
 export const unsubscribePushNotification = async (endpoint, token) => {
   const response = await fetch(ENDPOINTS.NOTIFICATION_SUBSCRIBE, {

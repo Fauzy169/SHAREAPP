@@ -49,6 +49,7 @@ module.exports = {
           from: path.resolve(__dirname, 'src/public/'),
           to: path.resolve(__dirname, 'dist/'),
         },
+        { from: 'src/sw.js', to: '' },
         {
           from: path.resolve(__dirname, 'src/manifest.json'),
           to: path.resolve(__dirname, 'dist/'),
