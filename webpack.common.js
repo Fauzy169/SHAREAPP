@@ -1,4 +1,3 @@
-// webpack.common.js
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
@@ -11,20 +10,20 @@ module.exports = {
   },
   output: {
     filename: '[name].bundle.js',
-    path: path.resolve(__dirname, 'dist'),
-    clean: true,
+    path: path.resolve(__dirname, 'docs'), 
+    clean: true, 
   },
   resolve: {
     extensions: ['.js'],
     modules: [
       path.resolve(__dirname, 'src/scripts'),
-      'node_modules'
+      'node_modules',
     ],
     alias: {
       '@': path.resolve(__dirname, 'src/scripts'),
       '@utils': path.resolve(__dirname, 'src/scripts/utils'),
       '@data': path.resolve(__dirname, 'src/scripts/data'),
-      '@pages': path.resolve(__dirname, 'src/scripts/pages')
+      '@pages': path.resolve(__dirname, 'src/scripts/pages'),
     },
   },
   module: {
@@ -37,7 +36,7 @@ module.exports = {
   },
   plugins: [
     new webpack.ProvidePlugin({
-      L: 'leaflet'
+      L: 'leaflet', 
     }),
     new HtmlWebpackPlugin({
       template: path.resolve(__dirname, 'src/index.html'),
@@ -46,13 +45,16 @@ module.exports = {
     new CopyWebpackPlugin({
       patterns: [
         {
-          from: path.resolve(__dirname, 'src/public/'),
-          to: path.resolve(__dirname, 'dist/'),
+          from: path.resolve(__dirname, 'src/public'),
+          to: '', 
         },
-        { from: 'src/sw.js', to: '' },
+        {
+          from: path.resolve(__dirname, 'src/sw.js'),
+          to: '', 
+        },
         {
           from: path.resolve(__dirname, 'src/manifest.json'),
-          to: path.resolve(__dirname, 'dist/'),
+          to: '', 
         },
       ],
     }),
