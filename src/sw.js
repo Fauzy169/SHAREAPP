@@ -1,5 +1,5 @@
 // src/sw.js
-const CACHE_NAME = 'StoryApp-V1';
+const CACHE_NAME = 'StoryApp-V2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -9,7 +9,7 @@ const ASSETS_TO_CACHE = [
   '/sw.bundle.js',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
+  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css',
 ];
 
 self.addEventListener('install', (event) => {
@@ -23,7 +23,6 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       return cachedResponse || fetch(event.request).catch(() => {
-        // Fallback untuk navigasi halaman
         if (event.request.mode === 'navigate') {
           return caches.match('/index.html');
         }
