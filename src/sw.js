@@ -1,12 +1,12 @@
 // src/sw.js
 const CACHE_NAME = 'StoryApp-V2';
 const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/favicon.png',
-  '/manifest.json',
-  '/app.bundle.js',
-  '/sw.bundle.js',
+  '/SHAREAPP/docs/',
+  '/SHAREAPP/docs/index.html',
+  '/SHAREAPP/docs/favicon.png',
+  '/SHAREAPP/docs/manifest.json',
+  '/SHAREAPP/docs/app.bundle.js',
+  '/SHAREAPP/docs/sw.bundle.js',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css',
@@ -24,7 +24,7 @@ self.addEventListener('fetch', (event) => {
     caches.match(event.request).then((cachedResponse) => {
       return cachedResponse || fetch(event.request).catch(() => {
         if (event.request.mode === 'navigate') {
-          return caches.match('/index.html');
+          return caches.match('/SHAREAPP/docs/index.html');
         }
       });
     })
@@ -48,7 +48,7 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(payload.title, {
       body: payload.body,
-      icon: '/favicon.png',
+      icon: '/SHAREAPP/docs/favicon.png',
       vibrate: [200, 100, 200]
     })
   );
