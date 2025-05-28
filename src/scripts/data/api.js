@@ -1,11 +1,13 @@
+// api.js
 import CONFIG from '../config';
+import { saveData, getAllData, deleteData } from './database'; // Tambahan penting
 
 const ENDPOINTS = {
   REGISTER: `${CONFIG.BASE_URL}/register`,
   LOGIN: `${CONFIG.BASE_URL}/login`,
   STORIES: `${CONFIG.BASE_URL}/stories`,
   STORIES_GUEST: `${CONFIG.BASE_URL}/stories/guest`,
-  STORIES_WITH_LOCATION: (page, size) => 
+  STORIES_WITH_LOCATION: (page, size) =>
     `${CONFIG.BASE_URL}/stories?location=1&page=${page}&size=${size}`,
   NOTIFICATION_SUBSCRIBE: `${CONFIG.BASE_URL}/notifications/subscribe`,
 };
@@ -15,23 +17,20 @@ const checkResponse = async (response) => {
     const error = await response.json();
     throw new Error(error.message || 'Something went wrong');
   }
-  
+
   const data = await response.json();
-  
-  // Validate expected structure for story detail
+
   if (window.location.hash.includes('stories/') && !data.story) {
     throw new Error('Invalid API response structure - missing story data');
   }
-  
+
   return data;
 };
 
 export const register = async (data) => {
   const response = await fetch(ENDPOINTS.REGISTER, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
   return checkResponse(response);
@@ -40,63 +39,82 @@ export const register = async (data) => {
 export const login = async (data) => {
   const response = await fetch(ENDPOINTS.LOGIN, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
   return checkResponse(response);
 };
 
-export const getStories = async (page = 1, size = 10) => {
+// ✅ Get stories with offline fallback
+export const getStories = async (page = 1, size = CONFIG.PAGE_SIZE) => {
   const token = localStorage.getItem(CONFIG.USER_TOKEN_KEY);
   const headers = {};
-  
+
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
 
+  if (!navigator.onLine) {
+    const listStory = await getAllData();
+    return { listStory };
+  }
+
   const response = await fetch(`${ENDPOINTS.STORIES}?page=${page}&size=${size}`, {
-    headers
+    headers,
   });
+
   return checkResponse(response);
 };
 
-export const getStoriesWithLocation = async (page = 1, size = 10) => {
+export const getStoriesWithLocation = async (page = 1, size = CONFIG.PAGE_SIZE) => {
   const token = localStorage.getItem(CONFIG.USER_TOKEN_KEY);
   const headers = {};
-  
+
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
 
   const response = await fetch(ENDPOINTS.STORIES_WITH_LOCATION(page, size), {
-    headers
+    headers,
   });
+
   return checkResponse(response);
 };
 
 export const getStoryDetail = async (id, token = null) => {
   const headers = {};
-  
+
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
 
   const response = await fetch(`${ENDPOINTS.STORIES}/${id}`, {
-    headers
+    headers,
   });
+
   return checkResponse(response);
 };
 
+// ✅ Add story with offline support and sync
 export const addStory = async (formData, token) => {
+  const storyObj = Object.fromEntries(formData.entries());
+  storyObj.id = `offline-${Date.now()}`; // Pastikan punya ID unik
+
+  if (!navigator.onLine) {
+    await saveData(storyObj);
+    alert('Anda sedang offline. Cerita disimpan dan akan dikirim saat online.');
+    return {
+      success: true,
+      message: 'Cerita disimpan secara offline',
+      data: storyObj,
+    };
+  }
+
   try {
-    const response = await fetch(`${ENDPOINTS.STORIES}`, {
+    const response = await fetch(ENDPOINTS.STORIES, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      },
-      body: formData
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
     });
 
     if (!response.ok) {
@@ -108,13 +126,13 @@ export const addStory = async (formData, token) => {
     return {
       success: true,
       message: 'Story added successfully',
-      data: data
+      data: data,
     };
   } catch (error) {
     console.error('Add story error:', error);
     return {
       success: false,
-      message: error.message
+      message: error.message,
     };
   }
 };
@@ -123,7 +141,7 @@ export const addStoryAsGuest = async (formData) => {
   try {
     const response = await fetch(ENDPOINTS.STORIES_GUEST, {
       method: 'POST',
-      body: formData
+      body: formData,
     });
 
     if (!response.ok) {
@@ -135,19 +153,19 @@ export const addStoryAsGuest = async (formData) => {
     return {
       success: true,
       message: 'Story added successfully as guest',
-      data: data
+      data: data,
     };
   } catch (error) {
     console.error('Add story as guest error:', error);
     return {
       success: false,
-      message: error.message
+      message: error.message,
     };
   }
 };
 
 export const subscribePushNotification = async (subscription, token) => {
-  if (!subscription || !subscription.keys || !subscription.keys.p256dh || !subscription.keys.auth) {
+  if (!subscription?.keys?.p256dh || !subscription?.keys?.auth) {
     throw new Error('Subscription keys not found or incomplete. Cannot subscribe.');
   }
 
@@ -155,8 +173,8 @@ export const subscribePushNotification = async (subscription, token) => {
     endpoint: subscription.endpoint,
     keys: {
       p256dh: subscription.keys.p256dh,
-      auth: subscription.keys.auth
-    }
+      auth: subscription.keys.auth,
+    },
   };
 
   const response = await fetch(`${CONFIG.BASE_URL}/notifications/subscribe`, {
@@ -177,8 +195,6 @@ export const subscribePushNotification = async (subscription, token) => {
   return response.json();
 };
 
-
-
 export const unsubscribePushNotification = async (endpoint, token) => {
   const response = await fetch(ENDPOINTS.NOTIFICATION_SUBSCRIBE, {
     method: 'DELETE',
@@ -188,6 +204,37 @@ export const unsubscribePushNotification = async (endpoint, token) => {
     },
     body: JSON.stringify({ endpoint }),
   });
+
   return checkResponse(response);
 };
 
+// ✅ Auto-sync offline stories when online
+window.addEventListener('online', async () => {
+  const offlineStories = await getAllData();
+
+  for (const story of offlineStories) {
+    const token = localStorage.getItem(CONFIG.USER_TOKEN_KEY);
+    const formData = new FormData();
+
+    for (const key in story) {
+      formData.append(key, story[key]);
+    }
+
+    try {
+      const response = await fetch(ENDPOINTS.STORIES, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (response.ok) {
+        await deleteData(story.id);
+        console.log(`Cerita offline "${story.id}" berhasil disinkronkan.`);
+      }
+    } catch (error) {
+      console.error(`Gagal menyinkronkan cerita offline "${story.id}":`, error);
+    }
+  }
+});
