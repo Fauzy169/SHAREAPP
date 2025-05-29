@@ -13,6 +13,36 @@ class App {
 
     this._setupDrawer();
     this._setupSkipLink();
+    this._setupNetworkListener(); // Tambahkan ini
+  }
+
+  _setupNetworkListener() {
+    const updateOnlineStatus = () => {
+      const offlineBadge = document.getElementById('offline-badge');
+      if (!navigator.onLine) {
+        if (!offlineBadge) {
+          const badge = document.createElement('div');
+          badge.id = 'offline-badge';
+          badge.innerHTML = `
+            <i class="fas fa-wifi-slash"></i> Mode Offline
+            <button id="view-offline-stories" class="button small">
+              Lihat Cerita Offline
+            </button>
+          `;
+          document.body.prepend(badge);
+          
+          document.getElementById('view-offline-stories').addEventListener('click', () => {
+            window.location.hash = '#/offline-stories';
+          });
+        }
+      } else if (offlineBadge) {
+        offlineBadge.remove();
+      }
+    };
+
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    updateOnlineStatus(); // Init check
   }
 
   _setupSkipLink() {

@@ -1,12 +1,20 @@
-// CSS imports
 import '../styles/styles.css';
-
 import App from './pages/app';
 import { initializeServiceWorker } from './utils/sw-register';
+import { showNotification } from './utils/notification'; // Tambahkan ini
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Initialize service worker
   initializeServiceWorker();
+
+  // Tambahkan event listener untuk online/offline
+  window.addEventListener('online', () => {
+    showNotification('Anda kembali online', 'success');
+  });
+
+  window.addEventListener('offline', () => {
+    showNotification('Anda sedang offline. Beberapa fitur mungkin terbatas.', 'warning');
+  });
 
   const app = new App({
     content: document.querySelector('#main-content'),
@@ -14,6 +22,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     navigationDrawer: document.querySelector('#navigation-drawer'),
     authButtons: document.querySelector('#auth-buttons'),
   });
+
 
   // Custom transition function using Animation API
   async function transitionToPage(callback) {

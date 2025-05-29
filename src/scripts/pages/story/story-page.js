@@ -44,6 +44,18 @@ export default class StoryPage {
 
   async afterRender() {
     try {
+    const { listStory, error } = await getStories();
+    
+    if (error?.isOffline) {
+      this.showNotification(error.message, 'info');
+      
+      const offlineLink = document.createElement('a');
+      offlineLink.href = '#/offline-stories';
+      offlineLink.className = 'button offline-link';
+      offlineLink.innerHTML = '<i class="fas fa-download"></i> Lihat Cerita Offline';
+      document.querySelector('.story-container').prepend(offlineLink);
+    }
+    try {
       await this._initMap();
       await this._presenter.loadStories();
       this._setupEventListeners();
@@ -52,6 +64,10 @@ export default class StoryPage {
         console.error('Error in afterRender:', error);
       }
     }
+    } catch (error) {
+    console.error('Error:', error);
+    this.showNotification('Gagal memuat cerita', 'error');
+  }
   }
 
   async _initMap() {
