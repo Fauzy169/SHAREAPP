@@ -5,6 +5,7 @@ import StoryDetailPage from '../pages/story/detail-page';
 import AddStoryPage from '../pages/add-story/add-story-page';
 import LoginPage from '../pages/auth/login-page';
 import RegisterPage from '../pages/auth/register-page';
+import OfflineStoriesPage from '../pages/offline-stories/offline-stories-page';
 
 const routes = {
   '/': new HomePage(),
