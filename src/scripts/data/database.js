@@ -109,3 +109,16 @@ export const clearAllData = async () => {
     throw error;
   }
 };
+
+export const saveStoryForOffline = async (story) => {
+  const db = await openDatabase();
+  const tx = db.transaction(CONFIG.OBJECT_STORE_NAME, 'readwrite');
+  await tx.objectStore(CONFIG.OBJECT_STORE_NAME).put(story);
+  return tx.complete;
+};
+
+export const getOfflineStories = async () => {
+  const db = await openDatabase();
+  const tx = db.transaction(CONFIG.OBJECT_STORE_NAME, 'readonly');
+  return tx.objectStore(CONFIG.OBJECT_STORE_NAME).getAll();
+};
