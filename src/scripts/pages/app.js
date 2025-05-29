@@ -13,7 +13,7 @@ class App {
 
     this._setupDrawer();
     this._setupSkipLink();
-    this._setupNetworkListener(); // Tambahkan ini
+    this._setupNetworkListener(); 
   }
 
   _setupNetworkListener() {
