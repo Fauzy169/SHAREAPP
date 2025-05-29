@@ -58,3 +58,15 @@ export const initializeServiceWorker = () => {
     window.location.reload(); // Reload saat SW baru aktif
   });
 };
+
+export const registerBackgroundSync = async () => {
+  if ('SyncManager' in window) {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      await registration.sync.register('sync-offline-stories');
+      console.log('Background sync registered');
+    } catch (error) {
+      console.error('Background sync registration failed:', error);
+    }
+  }
+};

@@ -24,12 +24,34 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Fetch: Respond with cache or fallback to network
+// sw.js - tambahkan bagian ini
+
 self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+  
+  // API caching strategy (cache-first with network fallback)
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(
+      caches.match(request).then((cachedResponse) => {
+        return cachedResponse || fetch(request).then((response) => {
+          // Clone the response to cache it
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseToCache);
+          });
+          return response;
+        });
+      })
+    );
+    return;
+  }
+
+  // Default strategy for other requests
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      return cachedResponse || fetch(event.request).catch(() => {
-        if (event.request.mode === 'navigate') {
+    caches.match(request).then((cachedResponse) => {
+      return cachedResponse || fetch(request).catch(() => {
+        if (request.mode === 'navigate') {
           return caches.match('/SHAREAPP/index.html');
         }
       });
@@ -61,3 +83,33 @@ self.addEventListener('push', (event) => {
     })
   );
 });
+
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'sync-offline-stories') {
+    console.log('Sync event triggered');
+    event.waitUntil(syncOfflineStories());
+  }
+});
+
+async function syncOfflineStories() {
+  const offlineStories = await getAllData();
+  for (const story of offlineStories) {
+    const formData = new FormData();
+    for (const key in story) {
+      formData.append(key, story[key]);
+    }
+    try {
+      const response = await fetch(`${CONFIG.BASE_URL}/stories`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${story.isGuest ? '' : localStorage.getItem(CONFIG.USER_TOKEN_KEY)}` },
+        body: formData,
+      });
+      if (response.ok) {
+        await deleteData(story.id);
+        console.log(`Cerita offline "${story.id}" berhasil disinkronkan.`);
+      }
+    } catch (error) {
+      console.error(`Gagal menyinkronkan cerita offline "${story.id}":`, error);
+    }
+  }
+}

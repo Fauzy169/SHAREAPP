@@ -54,16 +54,44 @@ export const getStories = async (page = 1, size = CONFIG.PAGE_SIZE) => {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  if (!navigator.onLine) {
-    const listStory = await getAllData();
-    return { listStory };
+  try {
+    if (!navigator.onLine) {
+      const offlineStories = await getAllData();
+      console.log('Menggunakan data offline', offlineStories);
+      return { 
+        listStory: offlineStories,
+        error: { 
+          message: 'Anda sedang offline. Menampilkan cerita yang tersimpan secara lokal.',
+          isOffline: true 
+        }
+      };
+    }
+
+    const response = await fetch(`${ENDPOINTS.STORIES}?page=${page}&size=${size}`, {
+      headers,
+    });
+
+    const data = await checkResponse(response);
+    
+    // Simpan data ke IndexedDB untuk penggunaan offline
+    if (data.listStory && data.listStory.length > 0) {
+      await Promise.all(data.listStory.map(story => saveData(story)));
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error fetching stories:', error);
+    
+    // Fallback ke data offline jika request gagal
+    const offlineStories = await getAllData();
+    return { 
+      listStory: offlineStories,
+      error: { 
+        message: `Gagal mengambil data: ${error.message}. Menampilkan cerita offline.`,
+        isOffline: true 
+      }
+    };
   }
-
-  const response = await fetch(`${ENDPOINTS.STORIES}?page=${page}&size=${size}`, {
-    headers,
-  });
-
-  return checkResponse(response);
 };
 
 export const getStoriesWithLocation = async (page = 1, size = CONFIG.PAGE_SIZE) => {
@@ -98,16 +126,27 @@ export const getStoryDetail = async (id, token = null) => {
 // ✅ Add story with offline support and sync
 export const addStory = async (formData, token) => {
   const storyObj = Object.fromEntries(formData.entries());
-  storyObj.id = `offline-${Date.now()}`; // Pastikan punya ID unik
+  
+  // Generate ID unik untuk offline story
+  storyObj.id = `offline-${Date.now()}`;
+  storyObj.createdAt = new Date().toISOString();
+  storyObj.isOffline = true;
 
   if (!navigator.onLine) {
-    await saveData(storyObj);
-    alert('Anda sedang offline. Cerita disimpan dan akan dikirim saat online.');
-    return {
-      success: true,
-      message: 'Cerita disimpan secara offline',
-      data: storyObj,
-    };
+    try {
+      await saveData(storyObj);
+      return {
+        success: true,
+        message: 'Cerita disimpan secara offline dan akan dikirim saat online',
+        data: storyObj,
+        isOffline: true
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Gagal menyimpan cerita offline: ' + error.message
+      };
+    }
   }
 
   try {
@@ -117,12 +156,7 @@ export const addStory = async (formData, token) => {
       body: formData,
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to add story');
-    }
-
-    const data = await response.json();
+    const data = await checkResponse(response);
     return {
       success: true,
       message: 'Story added successfully',
@@ -130,10 +164,22 @@ export const addStory = async (formData, token) => {
     };
   } catch (error) {
     console.error('Add story error:', error);
-    return {
-      success: false,
-      message: error.message,
-    };
+    
+    // Simpan ke offline storage jika online request gagal
+    try {
+      await saveData(storyObj);
+      return {
+        success: true,
+        message: `Gagal mengirim cerita: ${error.message}. Cerita disimpan secara offline.`,
+        data: storyObj,
+        isOffline: true
+      };
+    } catch (saveError) {
+      return {
+        success: false,
+        message: `Gagal mengirim cerita dan menyimpan offline: ${saveError.message}`
+      };
+    }
   }
 };
 
