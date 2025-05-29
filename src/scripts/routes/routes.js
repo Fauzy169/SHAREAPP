@@ -15,7 +15,7 @@ const routes = {
   '/add-story': new AddStoryPage(),
   '/login': new LoginPage(),
   '/register': new RegisterPage(),
-  '/offline-stories': new OfflineStoriesPage(),
+  '/offline-stories': OfflineStoriesPage(),
 };
 
 export default routes;
