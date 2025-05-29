@@ -1,4 +1,4 @@
-import CONFIG from '../../config';
+import CONFIG from '../config';
 
 const { DATABASE_NAME, DATABASE_VERSION, OBJECT_STORE_NAME } = CONFIG;
 
@@ -51,4 +51,17 @@ export const deleteData = async (id) => {
   const store = tx.objectStore(OBJECT_STORE_NAME);
   await store.delete(id);
   return tx.complete;
+};
+
+export const saveStoryForOffline = async (story) => {
+  const db = await openDatabase();
+  const tx = db.transaction(CONFIG.OBJECT_STORE_NAME, 'readwrite');
+  await tx.objectStore(CONFIG.OBJECT_STORE_NAME).put(story);
+  return tx.complete;
+};
+
+export const getOfflineStories = async () => {
+  const db = await openDatabase();
+  const tx = db.transaction(CONFIG.OBJECT_STORE_NAME, 'readonly');
+  return tx.objectStore(CONFIG.OBJECT_STORE_NAME).getAll();
 };

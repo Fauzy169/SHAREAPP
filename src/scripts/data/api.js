@@ -1,4 +1,5 @@
 import CONFIG from '../config';
+import { getOfflineStories } from './database';
 
 const ENDPOINTS = {
   REGISTER: `${CONFIG.BASE_URL}/register`,
@@ -49,6 +50,10 @@ export const login = async (data) => {
 };
 
 export const getStories = async (page = 1, size = 10) => {
+  if (!navigator.onLine) {
+    return { listStory: await getOfflineStories() };
+  }
+
   const token = localStorage.getItem(CONFIG.USER_TOKEN_KEY);
   const headers = {};
   
