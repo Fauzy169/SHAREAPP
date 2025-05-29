@@ -1,6 +1,6 @@
 // offline-stories-page.js
-import { getAllData, deleteData, clearAllData } from '../data/database';
-import { showFormattedDate } from '../utils';
+import { getAllData, deleteData, clearAllData } from '../../data/database';
+import { showFormattedDate } from '../../utils';
 
 const OfflineStoriesPage = {
   async render() {
