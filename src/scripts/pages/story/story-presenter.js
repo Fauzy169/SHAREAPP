@@ -16,31 +16,6 @@ export default class StoryPresenter {
   }
 
   async loadStories(loadMore = false) {
-    this._token = localStorage.getItem(CONFIG.USER_TOKEN_KEY);
-
-    // Perbaikan: Tangani push notification hanya jika tersedia dan lengkap
-    if (this._token && 'serviceWorker' in navigator && 'PushManager' in window) {
-      try {
-        const reg = await navigator.serviceWorker.ready;
-
-        let subscription = await reg.pushManager.getSubscription();
-        if (!subscription) {
-          subscription = await reg.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: this._urlBase64ToUint8Array(CONFIG.VAPID_PUBLIC_KEY),
-          });
-        }
-
-        if (!subscription?.keys?.p256dh || !subscription?.keys?.auth) {
-          throw new Error('Push subscription keys are missing');
-        }
-
-        await subscribePushNotification(subscription, this._token);
-      } catch (err) {
-        console.error('Push subscription failed:', err);
-      }
-    }
-
     if (this._isLoading) return;
 
     this._isLoading = true;
@@ -56,6 +31,13 @@ export default class StoryPresenter {
 
       if (!response.listStory) {
         throw new Error('Invalid API response structure');
+      }
+
+      // Handle offline data indicator
+      if (response.isOffline) {
+        this._view.showOfflineIndicator();
+      } else {
+        this._view.hideOfflineIndicator();
       }
 
       const newStories = response.listStory.filter(newStory =>

@@ -1,5 +1,5 @@
 import CONFIG from '../config';
-import { getOfflineStories } from './database';
+import { saveStories, getAllData as getOfflineStories, addStory as addStoryOffline, deleteStory as deleteStoryOffline } from './database';
 
 const ENDPOINTS = {
   REGISTER: `${CONFIG.BASE_URL}/register`,
@@ -50,22 +50,35 @@ export const login = async (data) => {
 };
 
 export const getStories = async (page = 1, size = 10) => {
-  if (!navigator.onLine) {
-    return { listStory: await getOfflineStories() };
-  }
+  try {
+    if (!navigator.onLine) {
+      const offlineStories = await getOfflineStories(); // Gunakan fungsi yang diimpor
+      return { listStory: offlineStories, isOffline: true };
+    }
 
-  const token = localStorage.getItem(CONFIG.USER_TOKEN_KEY);
-  const headers = {};
-  
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
+    const token = localStorage.getItem(CONFIG.USER_TOKEN_KEY);
+    const headers = {};
+    
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
 
-  const response = await fetch(`${ENDPOINTS.STORIES}?page=${page}&size=${size}`, {
-    headers
-  });
-  return checkResponse(response);
+    const response = await fetch(`${ENDPOINTS.STORIES}?page=${page}&size=${size}`, { headers });
+    const data = await checkResponse(response);
+    
+    // Save to IndexedDB in background
+    if (data.listStory && data.listStory.length > 0) {
+      saveStories(data.listStory).catch(console.error);
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Failed to fetch stories:', error);
+    const offlineStories = await getOfflineStories(); // Gunakan fungsi yang diimpor
+    return { listStory: offlineStories, isOffline: true };
+  }
 };
+
 
 export const getStoriesWithLocation = async (page = 1, size = 10) => {
   const token = localStorage.getItem(CONFIG.USER_TOKEN_KEY);
@@ -96,32 +109,48 @@ export const getStoryDetail = async (id, token = null) => {
 
 export const addStory = async (formData, token) => {
   try {
+    if (!navigator.onLine) {
+      // Create offline ID and save to IndexedDB
+      const offlineStory = {
+        id: `offline-${Date.now()}`,
+        name: formData.get('name'),
+        description: formData.get('description'),
+        photoUrl: await getImageAsBase64(formData.get('photo')),
+        createdAt: new Date().toISOString(),
+        isOffline: true
+      };
+      
+      await addStoryOffline(offlineStory);
+      return { 
+        success: true, 
+        message: 'Story saved offline and will be synced later',
+        data: offlineStory
+      };
+    }
+
+    // Online case (original implementation)
     const response = await fetch(`${ENDPOINTS.STORIES}`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      },
+      headers: { 'Authorization': `Bearer ${token}` },
       body: formData
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to add story');
-    }
-
-    const data = await response.json();
-    return {
-      success: true,
-      message: 'Story added successfully',
-      data: data
-    };
+    const data = await checkResponse(response);
+    return { success: true, message: 'Story added successfully', data };
   } catch (error) {
     console.error('Add story error:', error);
-    return {
-      success: false,
-      message: error.message
-    };
+    return { success: false, message: error.message };
   }
+};
+
+// Helper function for offline image handling
+const getImageAsBase64 = (file) => {
+  return new Promise((resolve) => {
+    if (!file) resolve('');
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(file);
+  });
 };
 
 export const addStoryAsGuest = async (formData) => {
