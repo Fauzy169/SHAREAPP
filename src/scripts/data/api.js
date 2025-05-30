@@ -1,5 +1,10 @@
 import CONFIG from '../config';
-import { saveStories, getAllData as getOfflineStories, addStory as addStoryOffline, deleteStory as deleteStoryOffline } from './database';
+import {
+  saveMultipleStories,
+  getAllStories as getOfflineStories,
+  saveStory as addStoryOffline,
+  deleteStory as deleteStoryOffline
+} from './database';
 
 const ENDPOINTS = {
   REGISTER: `${CONFIG.BASE_URL}/register`,
@@ -16,14 +21,13 @@ const checkResponse = async (response) => {
     const error = await response.json();
     throw new Error(error.message || 'Something went wrong');
   }
-  
+
   const data = await response.json();
-  
-  // Validate expected structure for story detail
+
   if (window.location.hash.includes('stories/') && !data.story) {
     throw new Error('Invalid API response structure - missing story data');
   }
-  
+
   return data;
 };
 
@@ -52,29 +56,28 @@ export const login = async (data) => {
 export const getStories = async (page = 1, size = 10) => {
   try {
     if (!navigator.onLine) {
-      const offlineStories = await getOfflineStories(); // Gunakan fungsi yang diimpor
+      const offlineStories = await getOfflineStories();
       return { listStory: offlineStories, isOffline: true };
     }
 
     const token = localStorage.getItem(CONFIG.USER_TOKEN_KEY);
     const headers = {};
-    
+
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
 
     const response = await fetch(`${ENDPOINTS.STORIES}?page=${page}&size=${size}`, { headers });
     const data = await checkResponse(response);
-    
-    // Save to IndexedDB in background
+
     if (data.listStory && data.listStory.length > 0) {
-      saveStories(data.listStory).catch(console.error);
+      saveMultipleStories(data.listStory).catch(console.error);
     }
-    
+
     return data;
   } catch (error) {
     console.error('Failed to fetch stories:', error);
-    const offlineStories = await getOfflineStories(); // Gunakan fungsi yang diimpor
+    const offlineStories = await getOfflineStories();
     return { listStory: offlineStories, isOffline: true };
   }
 };
@@ -83,55 +86,49 @@ export const getStories = async (page = 1, size = 10) => {
 export const getStoriesWithLocation = async (page = 1, size = 10) => {
   const token = localStorage.getItem(CONFIG.USER_TOKEN_KEY);
   const headers = {};
-  
+
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(ENDPOINTS.STORIES_WITH_LOCATION(page, size), {
-    headers
-  });
+  const response = await fetch(ENDPOINTS.STORIES_WITH_LOCATION(page, size), { headers });
   return checkResponse(response);
 };
 
 export const getStoryDetail = async (id, token = null) => {
   const headers = {};
-  
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
+  if (token) headers.Authorization = `Bearer ${token}`;
 
-  const response = await fetch(`${ENDPOINTS.STORIES}/${id}`, {
-    headers
-  });
+  const response = await fetch(`${ENDPOINTS.STORIES}/${id}`, { headers });
   return checkResponse(response);
 };
 
 export const addStory = async (formData, token) => {
   try {
+    const photo = formData.get('photo');
+    if (!photo || photo.size === 0) throw new Error('Photo is required');
+
     if (!navigator.onLine) {
-      // Create offline ID and save to IndexedDB
       const offlineStory = {
         id: `offline-${Date.now()}`,
-        name: formData.get('name'),
-        description: formData.get('description'),
-        photoUrl: await getImageAsBase64(formData.get('photo')),
+        name: formData.get('name') || 'Guest',
+        description: formData.get('description') || '',
+        photoUrl: await getImageAsBase64(photo),
         createdAt: new Date().toISOString(),
         isOffline: true
       };
-      
+
       await addStoryOffline(offlineStory);
-      return { 
-        success: true, 
+      return {
+        success: true,
         message: 'Story saved offline and will be synced later',
         data: offlineStory
       };
     }
 
-    // Online case (original implementation)
     const response = await fetch(`${ENDPOINTS.STORIES}`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${token}` },
       body: formData
     });
 
@@ -225,3 +222,6 @@ export const unsubscribePushNotification = async (endpoint, token) => {
   return checkResponse(response);
 };
 
+export const deleteOfflineStory = async (id) => {
+  return await deleteStoryOffline(id);
+};

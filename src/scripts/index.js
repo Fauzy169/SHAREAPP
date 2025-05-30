@@ -1,10 +1,25 @@
 // CSS imports
 import '../styles/styles.css';
-
+import { getAllStories, deleteStory } from './data/database'; // tambahkan ini di bagian paling atas
 import App from './pages/app';
 import { initializeServiceWorker } from './utils/sw-register';
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // Tambahkan event listener untuk tombol clear offline
+  const clearBtn = document.getElementById('clearOfflineBtn');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', async () => {
+      const confirmDelete = confirm('Yakin ingin menghapus semua data offline?');
+      if (!confirmDelete) return;
+
+      const stories = await getAllStories();
+      for (const story of stories) {
+        await deleteStory(story.id);
+      }
+      alert('✅ Semua data offline berhasil dihapus!');
+    });
+  }
+
   // Initialize service worker
   initializeServiceWorker();
 

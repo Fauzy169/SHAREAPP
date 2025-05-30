@@ -1,4 +1,4 @@
-// src/scripts/pages/add-story/add-story-page.js
+
 import CONFIG from '../../config';
 import { addStory, addStoryAsGuest } from '../../data/api';
 import { initMap } from '../../utils/map';
@@ -94,9 +94,41 @@ export default class AddStoryPage {
   }
 
   async afterRender() {
-    window.addEventListener('hashchange', this._stopCamera.bind(this));
-    await this._initMap();
-    this._setupEventListeners();
+    const form = document.getElementById('storyForm');
+    const offlineNote = document.getElementById('offlineNote');
+
+    // Tampilkan keterangan offline jika tidak terhubung internet
+    if (!navigator.onLine) {
+      offlineNote.style.display = 'block';
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const formData = new FormData(form);
+      const photo = formData.get('photo');
+
+      // ✅ Validasi file
+      if (!photo || photo.size === 0) {
+        alert('Foto harus diunggah.');
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem(CONFIG.USER_TOKEN_KEY);
+        const result = await addStory(formData, token);
+
+        if (result.success) {
+          alert(result.message);
+          window.location.hash = '#/stories';
+        } else {
+          alert(`Gagal menambahkan cerita: ${result.message}`);
+        }
+      } catch (err) {
+        console.error('Submission error:', err);
+        alert('Terjadi kesalahan saat mengirim cerita.');
+      }
+    });
   }
 
   _setupEventListeners() {
