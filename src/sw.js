@@ -1,5 +1,6 @@
 const CACHE_NAME = 'StoryApp-V3';
 const API_CACHE_NAME = 'StoryApp-API-V1';
+
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -19,28 +20,38 @@ const EXTERNAL_RESOURCES = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        // Cache resource lokal dulu
-        return cache.addAll(ASSETS_TO_CACHE)
-          .then(() => {
-            // Cache resource eksternal secara terpisah dengan error handling
-            return Promise.all(
-              EXTERNAL_RESOURCES.map(url => {
-                return fetch(url)
-                  .then(response => {
-                    if (response.ok) return cache.put(url, response);
-                  })
-                  .catch(err => {
-                    console.warn(`Failed to cache ${url}:`, err);
-                  });
-              })
-            );
-          });
-      })
-      .catch(err => {
-        console.error('Cache installation failed:', err);
-      })
+    (async () => {
+      try {
+        const cache = await caches.open(CACHE_NAME);
+
+        // Cache lokal satu per satu
+        for (const url of ASSETS_TO_CACHE) {
+          try {
+            await cache.add(url);
+          } catch (err) {
+            console.warn(`⚠️ Gagal cache local: ${url}`, err);
+          }
+        }
+
+        // Cache eksternal satu per satu
+        for (const url of EXTERNAL_RESOURCES) {
+          try {
+            const response = await fetch(url);
+            if (response.ok) {
+              await cache.put(url, response);
+            } else {
+              console.warn(`⚠️ Respon gagal untuk ${url}: ${response.status}`);
+            }
+          } catch (err) {
+            console.warn(`⚠️ Gagal fetch eksternal: ${url}`, err);
+          }
+        }
+
+        console.log('✅ Service worker install selesai');
+      } catch (err) {
+        console.error('🚫 Cache installation failed:', err);
+      }
+    })()
   );
 });
 
@@ -48,23 +59,18 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // API caching with network-first strategy
+  // API caching - network first
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
       (async () => {
         try {
-          // Try network first
-          const networkResponse = await fetch(request);
-          
-          // Clone and cache the response
+          const response = await fetch(request);
           const cache = await caches.open(API_CACHE_NAME);
-          cache.put(request, networkResponse.clone());
-          
-          return networkResponse;
-        } catch (error) {
-          // Fallback to cache if network fails
-          const cachedResponse = await caches.match(request);
-          return cachedResponse || new Response(JSON.stringify({ error: 'Offline mode' }), {
+          cache.put(request, response.clone());
+          return response;
+        } catch (err) {
+          const cached = await caches.match(request);
+          return cached || new Response(JSON.stringify({ error: 'Offline mode' }), {
             headers: { 'Content-Type': 'application/json' }
           });
         }
@@ -73,10 +79,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For other assets: cache-first strategy
+  // Asset caching - cache first
   event.respondWith(
-    caches.match(request).then(cachedResponse => {
-      return cachedResponse || fetch(request).catch(() => {
+    caches.match(request).then((cached) => {
+      return cached || fetch(request).catch(() => {
         if (request.mode === 'navigate') {
           return caches.match('/index.html');
         }
@@ -87,10 +93,10 @@ self.addEventListener('fetch', (event) => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
+    caches.keys().then((names) => {
       return Promise.all(
-        cacheNames
-          .filter((name) => name !== CACHE_NAME)
+        names
+          .filter((name) => name !== CACHE_NAME && name !== API_CACHE_NAME)
           .map((name) => caches.delete(name))
       );
     })
@@ -113,8 +119,8 @@ self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-stories') {
     event.waitUntil(
       (async () => {
-        // Implementasi sync logic di sini
-        console.log('Syncing offline stories...');
+        console.log('⏳ Syncing offline stories...');
+        // Tambahkan logic sinkronisasi ke server di sini jika ada
       })()
     );
   }
