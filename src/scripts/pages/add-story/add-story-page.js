@@ -1,7 +1,7 @@
+// src/scripts/pages/add-story/add-story-page.js
 import CONFIG from '../../config';
 import { addStory, addStoryAsGuest } from '../../data/api';
 import { initMap } from '../../utils/map';
-import { saveStoryForOffline } from '../../data/database';
 
 export default class AddStoryPage {
   constructor() {
@@ -165,24 +165,24 @@ export default class AddStoryPage {
           maximumAge: 0
         });
       });
-
+      
       this._location = {
         lat: position.coords.latitude,
         lon: position.coords.longitude,
         accuracy: position.coords.accuracy
       };
-
+      
       if (this._marker) {
         this._map.removeLayer(this._marker);
       }
-
+      
       this._marker = L.marker([this._location.lat, this._location.lon])
         .addTo(this._map)
         .bindPopup(`Your location (accuracy: ${Math.round(this._location.accuracy)}m)`)
         .openPopup();
-
+      
       this._map.setView([this._location.lat, this._location.lon], 15);
-
+      
     } catch (error) {
       console.error('Location error:', error);
       this._showLocationError();
@@ -193,7 +193,7 @@ export default class AddStoryPage {
     try {
       this._stopCamera();
       this._usingFrontCamera = false;
-
+      
       this._stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'environment',
@@ -234,7 +234,7 @@ export default class AddStoryPage {
   async _switchCamera() {
     this._stopCamera();
     this._usingFrontCamera = !this._usingFrontCamera;
-
+    
     try {
       this._stream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -269,7 +269,7 @@ export default class AddStoryPage {
     canvas.toBlob((blob) => {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const filename = `story-${timestamp}.jpg`;
-
+      
       this._photoFile = new File([blob], filename, {
         type: 'image/jpeg',
         lastModified: Date.now()
@@ -316,7 +316,7 @@ export default class AddStoryPage {
       this._stream = null;
     }
   }
-
+  
   _cleanup() {
     window.removeEventListener('hashchange', this._stopCamera);
     this._stopCamera();
@@ -334,7 +334,7 @@ export default class AddStoryPage {
     const extension = originalName.split('.').pop();
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const newFilename = `story-upload-${timestamp}.${extension}`;
-
+    
     this._photoFile = new File([file], newFilename, {
       type: file.type,
       lastModified: file.lastModified
@@ -368,7 +368,7 @@ export default class AddStoryPage {
   async _handleSubmit() {
     const submitBtn = document.getElementById('submitBtn');
     const errorElement = document.getElementById('formError');
-
+    
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Publishing...';
     errorElement.textContent = '';
@@ -378,11 +378,11 @@ export default class AddStoryPage {
       const content = document.getElementById('description').value.trim();
 
       if (content.includes('[HEADER]') || content.includes('[/HEADER]')) {
-        if (!content.match(/\[HEADER\].*\[\/HEADER\]/s)) {
-          throw new Error('Invalid header tags. Use [HEADER]...[/HEADER] format');
-        }
-      }
-
+    if (!content.match(/\[HEADER\].*\[\/HEADER\]/s)) {
+      throw new Error('Invalid header tags. Use [HEADER]...[/HEADER] format');
+    }
+  }
+      
       if (!header || !content) throw new Error('Header and content are required');
       if (!this._photoFile) throw new Error('Photo is required');
 
@@ -391,7 +391,7 @@ export default class AddStoryPage {
       const formData = new FormData();
       formData.append('description', description);
       formData.append('photo', this._photoFile);
-
+      
       if (this._includeLocation && this._location) {
         formData.append('lat', this._location.lat.toString());
         formData.append('lon', this._location.lon.toString());
@@ -413,16 +413,6 @@ export default class AddStoryPage {
       } else {
         throw new Error('Please login or post as guest');
       }
-
-      // ✅ Simpan ke IndexedDB setelah publish berhasil
-      await saveStoryForOffline({
-        id: Date.now().toString(),
-        description,
-        photoUrl: URL.createObjectURL(this._photoFile),
-        createdAt: new Date().toISOString(),
-        lat: this._location?.lat,
-        lon: this._location?.lon,
-      });
 
       alert('Story published successfully!');
       window.location.hash = '#/stories';
