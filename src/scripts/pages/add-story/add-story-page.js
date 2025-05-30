@@ -108,9 +108,9 @@ export default class AddStoryPage {
       const formData = new FormData(form);
       const photo = formData.get('photo');
 
-      // ✅ Validasi file
+      // Validasi: pastikan file foto terisi
       if (!photo || photo.size === 0) {
-        alert('Foto harus diunggah.');
+        alert('Foto wajib diunggah.');
         return;
       }
 

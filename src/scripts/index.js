@@ -1,25 +1,11 @@
 // CSS imports
 import '../styles/styles.css';
-import { getAllStories, deleteStory } from './data/database'; // tambahkan ini di bagian paling atas
+
 import App from './pages/app';
 import { initializeServiceWorker } from './utils/sw-register';
+import { getAllStories, deleteStory } from './data/database';
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Tambahkan event listener untuk tombol clear offline
-  const clearBtn = document.getElementById('clearOfflineBtn');
-  if (clearBtn) {
-    clearBtn.addEventListener('click', async () => {
-      const confirmDelete = confirm('Yakin ingin menghapus semua data offline?');
-      if (!confirmDelete) return;
-
-      const stories = await getAllStories();
-      for (const story of stories) {
-        await deleteStory(story.id);
-      }
-      alert('✅ Semua data offline berhasil dihapus!');
-    });
-  }
-
   // Initialize service worker
   initializeServiceWorker();
 
@@ -34,7 +20,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function transitionToPage(callback) {
     // Get the current content element
     const currentContent = document.querySelector('#main-content');
-    
+
     // Create animation for fade out
     const fadeOut = currentContent.animate(
       [
@@ -49,15 +35,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     );
 
     await fadeOut.finished;
-    
+
     // Execute the page change
     await callback();
-    
+
     // Get the new content element
     const newContent = document.querySelector('#main-content');
     newContent.style.opacity = '0';
     newContent.style.transform = 'translateY(-20px)';
-    
+
     // Create animation for fade in
     const fadeIn = newContent.animate(
       [
@@ -85,4 +71,29 @@ document.addEventListener('DOMContentLoaded', async () => {
       await app.renderPage();
     });
   });
+
+  // Tambahkan event listener untuk tombol "Hapus Semua Data Offline"
+  const clearBtn = document.getElementById('clearOfflineBtn');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', async () => {
+      const confirmDelete = confirm('Yakin ingin menghapus semua data offline?');
+      if (!confirmDelete) return;
+
+      const stories = await getAllStories();
+      for (const story of stories) {
+        await deleteStory(story.id);
+      }
+      alert('✅ Semua data offline berhasil dihapus!');
+    });
+  }
 });
+  // Register service worker for push notifications
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.ready.then((registration) => {
+      registration.pushManager.getSubscription().then((subscription) => {
+        if (!subscription) {
+          subscribePushNotification();
+        }
+      });
+    });
+  }
