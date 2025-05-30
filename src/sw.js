@@ -8,18 +8,39 @@ const ASSETS_TO_CACHE = [
   '/app.bundle.js',
   '/sw.bundle.js',
   '/icons/icon-192.png',
-  '/icons/icon-512.png',
+  '/icons/icon-512.png'
+];
+
+const EXTERNAL_RESOURCES = [
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css'
 ];
 
-// Install Service Worker and Cache Assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(ASSETS_TO_CACHE))
-      .then(() => self.skipWaiting())
+      .then(cache => {
+        // Cache resource lokal dulu
+        return cache.addAll(ASSETS_TO_CACHE)
+          .then(() => {
+            // Cache resource eksternal secara terpisah dengan error handling
+            return Promise.all(
+              EXTERNAL_RESOURCES.map(url => {
+                return fetch(url)
+                  .then(response => {
+                    if (response.ok) return cache.put(url, response);
+                  })
+                  .catch(err => {
+                    console.warn(`Failed to cache ${url}:`, err);
+                  });
+              })
+            );
+          });
+      })
+      .catch(err => {
+        console.error('Cache installation failed:', err);
+      })
   );
 });
 
@@ -66,13 +87,13 @@ self.addEventListener('fetch', (event) => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then(cacheNames => {
+    caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter(name => name !== CACHE_NAME && name !== API_CACHE_NAME)
-          .map(name => caches.delete(name))
+          .filter((name) => name !== CACHE_NAME)
+          .map((name) => caches.delete(name))
       );
-    }).then(() => self.clients.claim())
+    })
   );
 });
 
