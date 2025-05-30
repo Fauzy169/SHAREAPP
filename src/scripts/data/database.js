@@ -2,66 +2,102 @@ import CONFIG from '../config';
 
 const { DATABASE_NAME, DATABASE_VERSION, OBJECT_STORE_NAME } = CONFIG;
 
+let dbPromise;
+
 const openDatabase = () => {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
+  if (!dbPromise) {
+    dbPromise = new Promise((resolve, reject) => {
+      const request = indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
 
-    request.onupgradeneeded = (event) => {
-      const db = event.target.result;
-      if (!db.objectStoreNames.contains(OBJECT_STORE_NAME)) {
-        db.createObjectStore(OBJECT_STORE_NAME, { keyPath: 'id' });
-      }
-    };
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains(OBJECT_STORE_NAME)) {
+          const store = db.createObjectStore(OBJECT_STORE_NAME, { keyPath: 'id' });
+          // Tambahkan index untuk pencarian yang lebih efisien
+          store.createIndex('createdAt', 'createdAt', { unique: false });
+        }
+      };
 
-    request.onsuccess = (event) => {
-      resolve(event.target.result);
-    };
-
-    request.onerror = (event) => {
-      reject(event.target.error);
-    };
-  });
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = (event) => {
+        console.error('IndexedDB error:', event.target.error);
+        reject(event.target.error);
+      };
+    });
+  }
+  return dbPromise;
 };
 
-export const saveData = async (data) => {
-  const db = await openDatabase();
-  const tx = db.transaction(OBJECT_STORE_NAME, 'readwrite');
-  const store = tx.objectStore(OBJECT_STORE_NAME);
-  await store.put(data);
-  return tx.complete;
+// Fungsi Utama CRUD
+export const saveStory = async (story) => {
+  try {
+    const db = await openDatabase();
+    const tx = db.transaction(OBJECT_STORE_NAME, 'readwrite');
+    const store = tx.objectStore(OBJECT_STORE_NAME);
+    await store.put(story);
+    await tx.done;
+    return true;
+  } catch (error) {
+    console.error('Failed to save story:', error);
+    return false;
+  }
 };
 
-export const getData = async (id) => {
-  const db = await openDatabase();
-  const tx = db.transaction(OBJECT_STORE_NAME, 'readonly');
-  const store = tx.objectStore(OBJECT_STORE_NAME);
-  return store.get(id);
+export const getStory = async (id) => {
+  try {
+    const db = await openDatabase();
+    const tx = db.transaction(OBJECT_STORE_NAME, 'readonly');
+    const store = tx.objectStore(OBJECT_STORE_NAME);
+    return await store.get(id);
+  } catch (error) {
+    console.error('Failed to get story:', error);
+    return null;
+  }
 };
 
-export const getAllData = async () => {
-  const db = await openDatabase();
-  const tx = db.transaction(OBJECT_STORE_NAME, 'readonly');
-  const store = tx.objectStore(OBJECT_STORE_NAME);
-  return store.getAll();
+export const getAllStories = async () => {
+  try {
+    const db = await openDatabase();
+    const tx = db.transaction(OBJECT_STORE_NAME, 'readonly');
+    const store = tx.objectStore(OBJECT_STORE_NAME);
+    return await store.getAll();
+  } catch (error) {
+    console.error('Failed to get stories:', error);
+    return [];
+  }
 };
 
-export const deleteData = async (id) => {
-  const db = await openDatabase();
-  const tx = db.transaction(OBJECT_STORE_NAME, 'readwrite');
-  const store = tx.objectStore(OBJECT_STORE_NAME);
-  await store.delete(id);
-  return tx.complete;
+export const deleteStory = async (id) => {
+  try {
+    const db = await openDatabase();
+    const tx = db.transaction(OBJECT_STORE_NAME, 'readwrite');
+    const store = tx.objectStore(OBJECT_STORE_NAME);
+    await store.delete(id);
+    await tx.done;
+    return true;
+  } catch (error) {
+    console.error('Failed to delete story:', error);
+    return false;
+  }
 };
 
-export const saveStoryForOffline = async (story) => {
-  const db = await openDatabase();
-  const tx = db.transaction(CONFIG.OBJECT_STORE_NAME, 'readwrite');
-  await tx.objectStore(CONFIG.OBJECT_STORE_NAME).put(story);
-  return tx.complete;
-};
-
-export const getOfflineStories = async () => {
-  const db = await openDatabase();
-  const tx = db.transaction(CONFIG.OBJECT_STORE_NAME, 'readonly');
-  return tx.objectStore(CONFIG.OBJECT_STORE_NAME).getAll();
+// Fungsi Khusus untuk Batch Operations
+export const saveMultipleStories = async (stories) => {
+  try {
+    const db = await openDatabase();
+    const tx = db.transaction(OBJECT_STORE_NAME, 'readwrite');
+    const store = tx.objectStore(OBJECT_STORE_NAME);
+    
+    // Clear existing data
+    await store.clear();
+    
+    // Add all new stories
+    await Promise.all(stories.map(story => store.put(story)));
+    
+    await tx.done;
+    return true;
+  } catch (error) {
+    console.error('Failed to save multiple stories:', error);
+    return false;
+  }
 };
