@@ -2,15 +2,16 @@ const CACHE_NAME = 'StoryApp-V3';
 const API_CACHE_NAME = 'StoryApp-API-V1';
 
 const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/favicon.png',
-  '/manifest.json',
-  '/app.bundle.js',
-  '/sw.bundle.js',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png'
+  '/SHAREAPP/',
+  '/SHAREAPP/index.html',
+  '/SHAREAPP/favicon.png',
+  '/SHAREAPP/manifest.json',
+  '/SHAREAPP/app.bundle.js',
+  '/SHAREAPP/sw.bundle.js',
+  '/SHAREAPP/icons/icon-192.png',
+  '/SHAREAPP/icons/icon-512.png'
 ];
+
 
 const EXTERNAL_RESOURCES = [
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
